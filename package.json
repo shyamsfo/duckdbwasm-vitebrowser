@@ -11,6 +11,6 @@
     "vite": "^2.9.7"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.17.0"
+    "@duckdb/duckdb-wasm": "^1.27.0"
   }
 }

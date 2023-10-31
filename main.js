@@ -1,19 +1,25 @@
 import './style.css'
 
 import * as duckdb from '@duckdb/duckdb-wasm';
+/*
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
-import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import duckdb_wasm_next from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
+import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
+ */
+
+// import workers from './worker_blob.js'
+import mvp_w from './mvp_worker.js'
+import eh_w from './eh_worker.js'
 
 const MANUAL_BUNDLES = {
     mvp: {
-        mainModule: duckdb_wasm,
-        mainWorker: mvp_worker,
+        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.27.0/dist/duckdb-mvp.wasm',
+        mainWorker: mvp_w.mvp_worker
     },
     eh: {
-        mainModule: duckdb_wasm_next,
-        mainWorker: eh_worker
+        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.27.0/dist/duckdb-eh.wasm',
+        mainWorker: eh_w.eh_worker
     },
 };
 
@@ -22,9 +28,13 @@ console.log('Starting duck connection...')
 // Select a bundle based on browser checks
 const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
 
+var blob = new Blob(["(" + bundle.mainWorker.toString() + ")()"]);
+const worker = new Worker(URL.createObjectURL(blob, {type: 'text/javascript'}));
+// const worker = new Worker(URL.createObjectURL(blob));
+
 
 // Instantiate the asynchronus version of DuckDB-wasm
-const worker = new Worker(bundle.mainWorker);
+// const worker = new Worker(bundle.mainWorker);
 const logger = new duckdb.ConsoleLogger();
 
 const db = new duckdb.AsyncDuckDB(logger, worker);
@@ -33,14 +43,17 @@ await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 const conn = await db.connect(); // Connect to db
 
 console.log('Completed duck connection...')
-
-
+let q = await conn.query('PRAGMA version');
+console.log("Version: ", q);
 async function do_basic_queries() {
 
 // Basic query
     console.log("Basic query");
     let q = await window.duck.conn.query(`SELECT count(*)::INTEGER as v FROM generate_series(0, 100) t(v)`); // Returns v = 101
     console.log("Query result (Arrow Table):", q);
+
+    q = await window.duck.conn.query(` select * from pragma_version();`); // Returns v = 101
+    console.log("Query result pragma_version ):", q);
 
 // Copy of query result (JSON instead of Arrow Table)
     console.log('Query result copy (JSON):', JSON.parse(JSON.stringify(q.toArray())));
@@ -80,6 +93,5 @@ async function do_close() {
     window.duck = null;
 }
 
-// do_basic_queries();
+do_basic_queries();
 // do_close();
-

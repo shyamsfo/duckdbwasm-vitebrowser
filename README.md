@@ -23,3 +23,7 @@ Notes:
 - For ease of use when showing the results, JSON copies of the query results are printed to the console. Consequently...
     - ...this example is not acquainted with proper usage of the Apache Arrow objects like Table.
     - Making JSON copies of large query results for console.log may not be advisable
+
+
+### How to create these assets
+
