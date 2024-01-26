@@ -14,11 +14,11 @@ import eh_w from './eh_worker.js'
 
 const MANUAL_BUNDLES = {
     mvp: {
-        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.27.0/dist/duckdb-mvp.wasm',
+        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-mvp.wasm',
         mainWorker: mvp_w.mvp_worker
     },
     eh: {
-        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.27.0/dist/duckdb-eh.wasm',
+        mainModule: 'https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-eh.wasm',
         mainWorker: eh_w.eh_worker
     },
 };
@@ -45,6 +45,14 @@ const conn = await db.connect(); // Connect to db
 console.log('Completed duck connection...')
 let q = await conn.query('PRAGMA version');
 console.log("Version: ", q);
+async function do_version_check() {
+    q = await window.duck.conn.query(` select * from pragma_version();`); // Returns v = 101
+    console.log("Query result for pragma_version here: ...")
+    console.log(q);
+    console.log('**************************************************')
+    let xx = JSON.parse(JSON.stringify(q.toArray()));
+    console.log(xx);
+}
 async function do_basic_queries() {
 
 // Basic query
@@ -82,8 +90,7 @@ window.duck.conn = conn;
 window.duck.db = db;
 window.duck.worker = worker;
 
-console.log('duck loading complete. variables available as window.duck.conn, window.duck.db and window.duck.worker')
-
+console.log('duckdb wasm loading complete. variables available as window.duck.conn, window.duck.db and window.duck.worker')
 
 async function do_close() {
     // Closing everything
@@ -93,5 +100,6 @@ async function do_close() {
     window.duck = null;
 }
 
-do_basic_queries();
+do_version_check();
+// do_basic_queries();
 // do_close();

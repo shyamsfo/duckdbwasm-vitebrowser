@@ -27,3 +27,16 @@ Notes:
 
 ### How to create these assets
 
+1. mvp_worker.js and eh_worker.js have been modified from the actual duckdb-wasm package.
+2. main.js has been modified to use the eh_worker.js and mvp_worker.js
+
+3. Use the right version of ducdkb-wasm in package.json
+4. use yarn install to download the node modules
+5. copy worker.js and eh_worker.js from node-modules/@duckdb/ducdkb-wasm to this directory
+6. modify these. (done in 1 and 2) so that we can export those functions as variables.
+7. update main.js to use the mvp_worker.js and eh_worker.js
+8. yarn dev to build the package.
+9. check the console on localhost:3000 to make sure duck is loaded correctly.
+10. now copy the dist/assets/index.<hash>.js file to the nudata repo and publish from there.
+
+

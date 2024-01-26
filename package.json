@@ -1,5 +1,5 @@
 {
-  "name": "vite-browser",
+  "name": "duckdb-wasm-builder",
   "private": true,
   "version": "0.0.1",
   "scripts": {
@@ -11,6 +11,6 @@
     "vite": "^2.9.7"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.27.0"
+    "@duckdb/duckdb-wasm": "^1.28.0"
   }
 }
