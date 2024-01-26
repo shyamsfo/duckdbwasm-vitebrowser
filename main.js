@@ -6,9 +6,10 @@ import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import duckdb_wasm_next from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
+
+import workers from './worker_blob.js'
  */
 
-// import workers from './worker_blob.js'
 import mvp_w from './mvp_worker.js'
 import eh_w from './eh_worker.js'
 
