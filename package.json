@@ -8,9 +8,9 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "vite": "^2.9.7"
+    "vite": "^6.2.5"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.28.0"
+    "@duckdb/duckdb-wasm": "^1.29.0"
   }
 }
