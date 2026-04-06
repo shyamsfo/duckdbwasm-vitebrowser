@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@nudata/nu-duck — CDN client demo</title>
+  <style>
+    body { font-family: monospace; max-width: 720px; margin: 40px auto; padding: 0 16px; background: #1e1e1e; color: #d4d4d4; }
+    h2 { color: #9cdcfe; margin-bottom: 4px; }
+    p.subtitle { color: #6a9955; margin: 0 0 24px; font-size: 0.9em; }
+    #status { margin-bottom: 16px; font-size: 0.9em; color: #808080; }
+    #status.ready { color: #4ec9b0; }
+    #status.error { color: #f44747; }
+    textarea {
+      width: 100%; height: 260px; box-sizing: border-box;
+      background: #252526; color: #d4d4d4; border: 1px solid #3c3c3c;
+      padding: 12px; font-family: monospace; font-size: 0.88em;
+      resize: vertical; border-radius: 4px;
+    }
+    button {
+      margin-top: 12px; padding: 8px 24px;
+      background: #0e639c; color: #fff; border: none;
+      border-radius: 4px; font-size: 0.95em; cursor: pointer;
+    }
+    button:hover:not(:disabled) { background: #1177bb; }
+    button:disabled { opacity: 0.4; cursor: default; }
+  </style>
+  <!-- Load nu-duck from jsDelivr CDN -->
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@nudata/nu-duck/dist/duck_wasm.js"></script>
+</head>
+<body>
+
+  <h2>@nudata/nu-duck</h2>
+  <p class="subtitle">CDN client demo — loading from jsDelivr</p>
+
+  <div id="status">⏳ Loading DuckDB-WASM...</div>
+
+  <textarea id="output" readonly placeholder="Output will appear here after clicking Run…"></textarea>
+  <br>
+  <button id="run-btn" disabled>Run</button>
+
+  <script type="module">
+    const status = document.getElementById('status');
+    const output = document.getElementById('output');
+    const btn    = document.getElementById('run-btn');
+
+    // Poll for window.nu_duck to be ready
+    async function waitForDuck(timeout = 15000) {
+      const start = Date.now();
+      while (!window.nu_duck?.conn) {
+        if (Date.now() - start > timeout) throw new Error('Timed out waiting for nu_duck');
+        await new Promise(r => setTimeout(r, 100));
+      }
+    }
+
+    try {
+      await waitForDuck();
+      status.textContent = '✓ DuckDB-WASM ready';
+      status.className = 'ready';
+      btn.disabled = false;
+    } catch (e) {
+      status.textContent = `✗ ${e.message}`;
+      status.className = 'error';
+    }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      output.value = 'Running…';
+      try {
+        const conn = window.nu_duck.conn;
+        const lines = [];
+
+        // DuckDB version
+        const ver = await conn.query('SELECT * FROM pragma_version()');
+        const v = JSON.parse(JSON.stringify(ver.toArray()))[0];
+        lines.push(`DuckDB version : ${v.library_version}`);
+        lines.push(`Source version : ${v.source_id}`);
+        lines.push('');
+
+        // Basic aggregate
+        const agg = await conn.query(
+          'SELECT count(*)::INTEGER AS n, min(v)::INTEGER AS min, max(v)::INTEGER AS max FROM generate_series(1, 100) t(v)'
+        );
+        const a = JSON.parse(JSON.stringify(agg.toArray()))[0];
+        lines.push('generate_series(1, 100)');
+        lines.push(`  count : ${a.n}`);
+        lines.push(`  min   : ${a.min}`);
+        lines.push(`  max   : ${a.max}`);
+        lines.push('');
+
+        // Prepared statement
+        const stmt = await conn.prepare(
+          'SELECT (v * ?)::INTEGER AS v FROM generate_series(1, 5) t(v)'
+        );
+        const res = await stmt.query(7);
+        const rows = JSON.parse(JSON.stringify(res.toArray(), (_, val) =>
+          typeof val === 'bigint' ? Number(val) : val
+        ));
+        lines.push('generate_series(1,5) × 7  (prepared statement)');
+        lines.push(rows.map(r => `  ${r.v}`).join('\n'));
+
+        output.value = lines.join('\n');
+      } catch (e) {
+        output.value = `Error: ${e.message}`;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

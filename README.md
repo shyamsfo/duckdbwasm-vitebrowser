@@ -1,42 +1,138 @@
-# duckdb-wasm example: vite-browser
+# @nudata/nu-duck
 
-![Side-by-side screenshot of browser running the example and the corresponding output in the DevTools window](vite_example.PNG)
+A browser script that loads DuckDB-WASM and exposes a ready-to-use connection as `window.nu_duck`. Load it from a CDN and run SQL queries in the browser without bundling DuckDB into your own app.
 
-Barebones example of querying with duckdb-wasm using Vite and just the browser (no front-end framework). No dataset file is loaded; the data is created using the generate_series function.
+---
 
-## How to run
-1. Install the dependencies using `npm i`
-2. Run the example using `npm run preview`
-3. (Optional) If forking, use `npm run dev` and go from there!
+## For Users
 
-## Steps taken
+### Loading via CDN
 
-Everything runs from the [main.js](main.js) script which roughly does the following:
+jsDelivr and unpkg automatically serve any npm package. Once `@nudata/nu-duck` is published, load it with:
 
-1. Import: duckdb-wasm and all its bundle alternatives
-2. Pick bundle: Choose based on the browser in-use
-3. Instantiate: Start duckdb and create a connection
-4. Query: Select from the "database" (generate_series) using a basic query or a prepared statement
-5. Close: The connection, database, and worker.
+```html
+<!-- jsDelivr -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/@nudata/nu-duck/dist/duck_wasm.js"></script>
 
-Notes:
-- For ease of use when showing the results, JSON copies of the query results are printed to the console. Consequently...
-    - ...this example is not acquainted with proper usage of the Apache Arrow objects like Table.
-    - Making JSON copies of large query results for console.log may not be advisable
+<!-- unpkg -->
+<script type="module" src="https://unpkg.com/@nudata/nu-duck/dist/duck_wasm.js"></script>
+```
 
+### Waiting for the connection
 
-### How to create these assets
+`window.nu_duck` is set asynchronously. Poll for it before querying:
 
+```js
+async function waitForDuck(timeout = 10000) {
+    const start = Date.now();
+    while (!window.nu_duck?.conn) {
+        if (Date.now() - start > timeout) throw new Error('nu_duck timed out');
+        await new Promise(r => setTimeout(r, 50));
+    }
+    return window.nu_duck;
+}
 
-1. Use the right version of ducdkb-wasm in package.json
-2. use yarn install to download the node modules
-3. From node_modules, copy @duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js  to mvp_worker.js
-4. From node_modules, copy @duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js  to eh_worker.js
-5. modify these. so that we can export those functions as variables.
-6. mvp_worker.js and eh_worker.js have been modified from the actual duckdb-wasm package.
-7. Edit main.js to use mvp_worker.js and eh_worker.js from our local directory instead of from @node_modules ...
-8. yarn dev to build the package.
-9. check the console on localhost:3000 to make sure duck is loaded correctly.
-10. now copy the dist/assets/index.<hash>.js file to the nudata repo and publish from there.
+const duck = await waitForDuck();
+const result = await duck.conn.query('SELECT 42 AS answer');
+console.log(result.toArray());
+```
 
+### API
 
+`window.nu_duck` exposes three properties:
+
+| Property | Description |
+|---|---|
+| `conn` | `AsyncDuckDBConnection` — use this to run queries |
+| `db` | `AsyncDuckDB` — the database instance |
+| `worker` | The underlying `Worker` |
+
+### Running queries
+
+```js
+// Simple query — returns an Apache Arrow Table
+const result = await window.nu_duck.conn.query('SELECT * FROM generate_series(1, 5) t(v)');
+console.log(result.toArray());
+
+// Convert to plain JSON
+const rows = JSON.parse(JSON.stringify(result.toArray()));
+
+// Prepared statement (use for repeated queries or user input)
+const stmt = await window.nu_duck.conn.prepare('SELECT (v + ?)::INTEGER AS v FROM generate_series(0, 4) t(v)');
+const res = await stmt.query(10);
+```
+
+### Teardown
+
+```js
+await window.nu_duck.conn.close();
+await window.nu_duck.db.terminate();
+await window.nu_duck.worker.terminate();
+window.nu_duck = null;
+```
+
+---
+
+## For Developers
+
+### Setup
+
+```bash
+yarn install
+```
+
+### Daily workflow
+
+```bash
+yarn dev          # dev server at localhost:5173 with hot reload
+yarn build        # production build → dist/
+yarn preview      # serve dist/ locally — closest approximation to CDN delivery
+yarn test         # build + serve dist/ + run Playwright tests in Chrome and Firefox
+yarn build:watch  # rebuild on file changes (useful when testing against another local app)
+```
+
+Use `yarn dev` when iterating on `main.js`. Use `yarn preview` or `yarn test` to validate the actual production artifact.
+
+### Project structure
+
+```
+main.js             # entire library — loads DuckDB-WASM and sets window.nu_duck
+vite.config.js      # build config: base './' for CDN-relative URLs, fixed output filenames
+playwright.config.js
+tests/load.spec.js  # smoke tests: conn/db/worker globals, basic query, version, prepared stmt
+dist/               # build output — all files must be deployed together
+  duck_wasm.js        main bundle
+  duck_wasm.css
+  duckdb-mvp.wasm     } fetched at runtime by duck_wasm.js
+  duckdb-eh.wasm      }
+  duckdb-browser-mvp.worker.js  }
+  duckdb-browser-eh.worker.js   }
+```
+
+### Updating DuckDB-WASM
+
+1. Update `@duckdb/duckdb-wasm` version in `package.json`
+2. `yarn install`
+3. `yarn test` — confirm nothing broke
+4. Bump version in `package.json`
+5. Publish (see below)
+
+### Publishing to npm
+
+```bash
+npm login         # first time only
+npm whoami        # confirm you're on the right account
+npm pack --dry-run  # verify only dist/ files are included before publishing
+npm publish --access public
+```
+
+`prepublishOnly` runs `yarn clean && yarn build` automatically before upload.
+`postpublish` pushes the commit and tags to git automatically after a successful publish.
+
+### Useful npm tag commands
+
+```bash
+yarn showtags           # list all dist-tags for @nudata/nu-duck
+yarn tl                 # yarn tag list (all packages)
+yarn tl_2               # npm dist-tag ls @nudata/nu-duck latest
+```
